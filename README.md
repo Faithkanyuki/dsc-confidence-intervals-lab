@@ -54,10 +54,16 @@ Calculate the mean for the population and visualize the distribution. Also, desc
 ```python
 
 # Convert the population into a pandas dataframe pop_ages
-pop_ages = None
+pop_ages = pd.DataFrame(population_ages,columns=["age"])
 
-# Calculate and print descriptive statistics for pop_ages
+# Calculate and print descriptive statistics for pop_age
+#describe used to quickly generate summary statistics 
+desc_stats=pop_ages["age"].describe()
+mean_age=pop_ages["age"].mean()
 
+print("Mean of the population:", mean_age)
+
+print(desc_stats)
 # The mean of population is: 42.985332
 
 # count	250000 
@@ -74,6 +80,15 @@ pop_ages = None
 
 ```python
 # Draw a histogram for pop ages
+# Draw a histogram for pop ages
+plt.figure(figsize=(10,6))
+sns.histplot(pop_ages['age'], bins=50, kde=False, color='skyblue')
+plt.axvline(mean_age, color='red', linestyle='dashed', linewidth=2, label=f"Mean = {mean_age:.2f}")
+plt.title("Population Age Distribution (Bimodal with Poisson)")
+plt.xlabel("Age")
+plt.ylabel("Frequency")
+plt.legend()
+plt.show()
 ```
 
 Let's take a random sample of size 500 from this distribution and calculate the sample mean and standard deviation. Also, work out the difference between the population and sample mean. 
@@ -84,15 +99,16 @@ np.random.seed(15)
 
 # Take random sample of size 500
 sample_size = 500
-sample = None
+sample =  np.random.choice(population_ages,sample_size)
 
 # Calculate sample mean and standard deviation
-sample_mean = None
-sample_std = None
+sample_mean = sample.mean()
+sample_std = sample.std(ddof=0)  #default in NumPy's.std when you alread have the entire population 
 
-#print ("Sample mean:", sample_mean)
-#print ("Sample std.:", sample_std)
-#print ("Difference between means:", population_ages.mean() - sample_mean)
+
+print ("Sample mean:", sample_mean)
+print ("Sample std.:", sample_std)
+print ("Difference between means:", population_ages.mean() - sample_mean)
 
 # Sample mean: 43.49 
 # Sample std.: 12.98529552994463
@@ -113,13 +129,19 @@ To illustrate, let's create a sampling distribution by taking 100 samples from o
 np.random.seed(15)
 
 point_estimates = []         # Make empty list to hold point estimates
-
+sample_size= 500
 # Take 100 samples and generate 100 point estimates using a for loop. 
 # append sample means to get point estimates
+for _ in range (100):
+    sample = np.random.choice(population_ages, sample_size)
+    point_estimates.append(sample.mean())
 
 
 # Convert the point_estimates into a pandas dataframe
+point_estimates_df = pd.DataFrame(point_estimates, columns=["sample_mean"])
 # Calculate and print descriptive statistics for the dataframe
+desc_stats = point_estimates_df["sample_mean"].describe()
+print(desc_stats)
 
 # count	100.000000
 # mean	42.959380
@@ -137,6 +159,16 @@ Let's visualize the distribution of sample means to check for normality.
 
 ```python
 #Visualize the point estimates by plotting a density plot (use pandas)
+plt.figure(figsize=(10,6))
+sns.histplot(point_estimates_df["sample_mean"], bins=20, kde=True, color="skyblue")
+plt.axvline(point_estimates_df["sample_mean"].mean(), color='red', linestyle='dashed', linewidth=2,
+            label=f"Mean of sample means = {point_estimates_df['sample_mean'].mean():.2f}")
+plt.title("Sampling Distribution of Sample Means (n=500, 100 samples)")
+plt.xlabel("Sample Mean")
+plt.ylabel("Frequency")
+plt.legend()
+plt.show()
+
 ```
 
 The sampling distribution appears to be roughly normal, despite the bimodal population distribution that the samples were drawn from. This is where the central limit theorem comes into play. In addition, the mean of the sampling distribution approaches the true population mean. The more samples we take, the better our estimate of the population parameter is likely to be. 
@@ -182,31 +214,31 @@ def conf_interval(pop, sample):
     # Calculate the z-critical value using stats.norm.ppf()
     # Note that we use stats.norm.ppf(q = 0.975) to get the desired z-critical value 
     # instead of q = 0.95 because the distribution has two tails.
-    z = None  #  z-critical value for 95% confidence
+    z = stats.norm.ppf(0.975)  #  z-critical value for 95% confidence
 
     #Calculate the population std from data
-    pop_stdev = None
+    pop_stdev = np.std(pop,ddof=0)
 
     # Calculate the margin of error using formula given above
-    moe = None
+    moe = z*(pop_stdev/np.sqrt(n))
 
     # Calculate the confidence interval by applying margin of error to sample mean 
     # (mean - margin of error, mean+ margin of error)
-    conf = None
+    conf = (x_hat-moe,x_hat+moe)
     
     return z, moe, conf
 
 # Call above function with sample and population 
-#z_critical, margin_of_error, confidence_interval = conf_interval(population_ages, sample)    
+z_critical, margin_of_error, confidence_interval = conf_interval(population_ages, sample)    
     
     
 
-# print("z-critical value:")              
-# print(z_critical)         
-# print ('\nMargin of error')
-# print(margin_of_error)
-# print("\nConfidence interval:")
-# print(confidence_interval)
+ print("z-critical value:")              
+ print(z_critical)         
+ print ('\nMargin of error')
+ print(margin_of_error)
+ print("\nConfidence interval:")
+ print(confidence_interval)
 
 # z-critical value:
 # 1.959963984540054
@@ -239,15 +271,16 @@ sample_means = []
 
 for sample in range(25):
     # Take a random sample of chosen size 
-    sample = None
+    sample = np.random.choice(population_ages, sample_size)
     
     # Calculate z_critical, margin_of_error, confidence_interval from function above
-    #z_critical, margin_of_error, confidence_interval = conf_interval(population_ages, sample)    
+    z_critical, margin_of_error, confidence_interval = conf_interval(population_ages, sample)    
 
-    sample_mean = None
+    sample_mean =  sample.mean()
     
     # Calculate and append sample means and conf intervals for each iteration
-
+    sample_means.append(sample_mean)
+    intervals.append(confidence_interval)
 
 ```
 
@@ -256,7 +289,41 @@ for sample in range(25):
 # plot the mean and confidence interval for each sample as error bars
 # plot the population mean 
 
-plt.figure(figsize=(15,9))
+plt.figure(figsize=(12,6))
+
+# create empty lists
+lowers = []
+uppers = []
+
+# fill lowers and uppers using a normal loop
+for ci in intervals:
+    lowers.append(ci[0])
+    uppers.append(ci[1])
+
+# now calculate lower and upper errors
+lower_error = []
+upper_error = []
+
+for i in range(len(sample_means)):
+    lower_error.append(sample_means[i] - lowers[i])
+    upper_error.append(uppers[i] - sample_means[i])
+
+# put errors together in the format matplotlib needs
+errors = [lower_error, upper_error]
+
+# plot sample means with their confidence intervals
+plt.errorbar(range(len(sample_means)), sample_means, yerr=errors,
+             fmt='o', capsize=5, color='blue')
+
+# plot the true population mean as a red dashed line
+plt.axhline(population_ages.mean(), color='red', linestyle='--', label='Population Mean')
+
+plt.title("Confidence Intervals for Samples")
+plt.xlabel("Sample Number")
+plt.ylabel("Sample Mean")
+plt.legend()
+plt.show()
+
 
 ```
 
